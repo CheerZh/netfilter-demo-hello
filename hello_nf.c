@@ -14,6 +14,11 @@ MODULE_LICENSE("GPLv3");
 MODULE_AUTHOR("<cheer.zhang@ucloud.cn>");
 MODULE_DESCRIPTION("Hello Netfliter");
 
+#define NIPQUAD(addr) \
+        ((unsigned char *)&addr)[0], \
+        ((unsigned char *)&addr)[1], \
+        ((unsigned char *)&addr)[2], \
+        ((unsigned char *)&addr)[3]
 #define NIPQUAD_FMT "%u.%u.%u.%u"
 
 #define HOOK_PARAM_LIST                                     \
@@ -25,30 +30,32 @@ MODULE_DESCRIPTION("Hello Netfliter");
 static unsigned int hello_pre_routing_hook(HOOK_PARAM_LIST){
     struct iphdr *ip_header;
     ip_header = (struct iphdr *)(skb_network_header(skb));
-    printk("@pre_routing: hello '"NIPQUAD_FMT"'\n", ip_header->saddr);
+    printk("@pre_routing: hello '"NIPQUAD_FMT"'\n", NIPQUAD(ip_header->saddr));
     return NF_ACCEPT;
 }
 static unsigned int hello_local_in_hook(HOOK_PARAM_LIST){
     struct iphdr *ip_header;
     ip_header = (struct iphdr *)(skb_network_header(skb));
-    printk("@local_in: welcome '"NIPQUAD_FMT"'\n", ip_header->saddr);
+    printk("@local_in: welcome '"NIPQUAD_FMT"'\n", NIPQUAD(ip_header->saddr));
     return NF_ACCEPT;
 }
 static unsigned int hello_forward_hook(HOOK_PARAM_LIST){
     struct iphdr *ip_header;
     ip_header = (struct iphdr *)(skb_network_header(skb));
     printk("@forward: hello again '"NIPQUAD_FMT"', and hi'"NIPQUAD_FMT"'.\n",
-        ip_header->saddr, ip_header->daddr);
+        NIPQUAD(ip_header->saddr), NIPQUAD(ip_header->daddr));
     return NF_ACCEPT;
 }
 static unsigned int hello_local_out_hook(HOOK_PARAM_LIST){
     struct iphdr *ip_header;
     ip_header = (struct iphdr *)(skb_network_header(skb));
-    printk("@local_out: hi every on, I'm '"NIPQUAD_FMT"'. \n",ip_header->daddr);
+    printk("@local_out: hi every one, I'm '"NIPQUAD_FMT"'. \n", NIPQUAD(ip_header->saddr));
     return NF_ACCEPT;
 }
 static unsigned int hello_post_routing_hook(HOOK_PARAM_LIST){
-    printk("@post_routing: hi '"NIPQUAD_FMT"' . \n",ip_header->saddr);
+    struct iphdr *ip_header;
+    ip_header = (struct iphdr *)(skb_network_header(skb));
+    printk("@post_routing: hi '"NIPQUAD_FMT"' . \n", NIPQUAD(ip_header->daddr));
     return NF_ACCEPT;
 }
 
@@ -87,7 +94,7 @@ static struct nf_hook_ops hello_nf_ops[] __read_mostly = {
 
 static int __init init_nf_test(void) {
   int ret;
-  ret = nf_register_hooks(nf_test_ops, ARRAY_SIZE(nf_test_ops));
+  ret = nf_register_hooks(hello_nf_ops, ARRAY_SIZE(hello_nf_ops));
   if (ret < 0) {
     printk("register nf hook fail\n");
     return ret;
@@ -97,7 +104,7 @@ static int __init init_nf_test(void) {
 }
 
 static void __exit exit_nf_test(void) {
-  nf_unregister_hooks(nf_test_ops, ARRAY_SIZE(nf_test_ops));
+  nf_unregister_hooks(hello_nf_ops, ARRAY_SIZE(hello_nf_ops));
 }
 
 module_init(init_nf_test);
